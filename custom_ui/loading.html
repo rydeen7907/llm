@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="ja">
+    <head>
+        <meta charset="UTF-8">
+        <meta http-equiv="refresh" content="5">
+        <title>読み込み中 - ローカルLLM</title>
+        <style>
+            body {
+                font-family: 'Helvetica Neue', Arial, 'Hiragino Kaku Gothic ProN', 'Hiragino Sans', Meiryo, sans-serif;
+                display: flex;
+                justify-content: center;
+                align-items: center;
+                height: 100vh;
+                margin: 0;
+                background-color: #f8f9fa;
+            }
+            #loading {
+                text-align: center;
+                padding: 30px;
+                background: white;
+                border-radius: 12px;
+                box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+                color: #333;
+            }
+        </style>
+    </head>
+    <body>
+        <div id="loading">
+            モデルを読み込んでいます。しばらくお待ちください...<br/>
+            準備が整い次第、チャット画面が表示されます。
+        </div>
+
+        <script>
+            async function checkServerReady() {
+                try {
+                    const response = await fetch('/health');
+                    if (response.ok) {
+                        const data = await response.json();
+                        if (data.status === 'ok') {
+                            window.location.href = 'index.html';
+                        }
+                    }
+                } catch (error) { /* 起動直後の接続エラーは無視 */ }
+            }
+            // 1秒ごとにチェック
+            setInterval(checkServerReady, 1000);
+        </script>
+    </body>
+</html>

@@ -1,0 +1,203 @@
+/* 変数定義: アプリケーション全体で使用するテーマカラー */
+:root {
+    --primary-color: #0084ff;
+}
+
+/* 基本設定: 全体のフォント、背景、高さの固定 */
+body { font-family: 'Helvetica Neue', Arial, 'Hiragino Kaku Gothic ProN', 'Hiragino Sans', Meiryo, sans-serif; background-color: #f0f2f5; margin: 0; height: 100vh; overflow: hidden; }
+
+/* メインレイアウト: サイドバーとチャットエリアを横並びに配置 */
+#app-container { display: flex; width: 100%; height: 100vh; }
+#sidebar { width: 260px; background-color: #202123; color: white; display: flex; flex-direction: column; padding: 10px; flex-shrink: 0; z-index: 20; }
+#main-chat { flex: 1; display: flex; flex-direction: column; min-width: 0; position: relative; background: #f0f2f5; }
+
+/* 壁紙レイヤー: 疑似要素を使用してチャット背景に画像を表示（透明度やぼかしの動的変更に対応） */
+#main-chat::before {
+    content: "";
+    position: absolute;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background-image: var(--chat-wallpaper, none);
+    background-size: var(--chat-wallpaper-size, cover);
+    background-repeat: var(--chat-wallpaper-repeat, no-repeat);
+    background-position: center;
+    opacity: var(--chat-wallpaper-opacity, 0.15); /* スライダーで調整可能 */
+    filter: blur(var(--chat-wallpaper-blur, 0px));
+    z-index: 0;
+    pointer-events: none;
+}
+
+/* コンポーネントの重なり順: ヘッダーや入力を壁紙（z-index:0）より手前に配置 */
+#header, #chat-container, #file-preview, #input-area { position: relative; z-index: 1; }
+#chat-container { background: transparent; flex: 1; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; gap: 15px; }
+
+#header { background: rgba(255, 255, 255, 0.9); padding: 10px 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); font-weight: bold; font-size: 1.2em; color: #1c1e21; display: flex; justify-content: space-between; align-items: center; }
+
+/* サイドバーコンポーネント: チャット作成ボタン、履歴リスト、アクションアイコン */
+#new-chat-btn { background: transparent; border: 1px solid #4d4d4f; color: white; padding: 12px; border-radius: 5px; cursor: pointer; text-align: left; margin-bottom: 20px; transition: background 0.2s; font-size: 0.9em; }
+#new-chat-btn:hover { background: #2a2b32; }
+#chat-list { flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 5px; }
+.chat-item { padding: 10px; border-radius: 5px; cursor: pointer; font-size: 0.85em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: flex; justify-content: space-between; align-items: center; color: #ececf1; }
+.chat-item:hover { background: #2a2b32; }
+.chat-item.active { background: #343541; }
+.regenerate-chat, .edit-chat, .delete-chat { opacity: 0; color: #acacbe; padding: 2px 5px; font-size: 1.1em; transition: opacity 0.2s, color 0.2s; }
+.chat-item:hover .regenerate-chat, .chat-item:hover .edit-chat, .chat-item:hover .delete-chat { opacity: 1; }
+.regenerate-chat:hover { color: #42b983; }
+.edit-chat:hover { color: var(--primary-color); }
+.delete-chat:hover { color: #ff4d4d; }
+.chat-actions { display: flex; gap: 4px; }
+
+#settings-btn { background: transparent; border: none; color: #acacbe; cursor: pointer; font-size: 0.9em; width: 100%; text-align: left; padding: 10px; transition: all 0.2s; border-radius: 5px; }
+#settings-btn:hover { color: white; background-color: #2a2b32; }
+
+#server-stop-btn { background-color: #d9534f; border: none; color: white; padding: 10px; border-radius: 5px; cursor: pointer; font-size: 0.9em; width: 100%; text-align: left; margin-top: 5px; transition: background 0.2s; display: flex; align-items: center; gap: 8px; }
+#server-stop-btn:hover { background-color: #c9302c; filter: brightness(1.2); }
+#server-stop-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* モーダル: 設定画面の背景（暗幕） */
+#settings-modal::backdrop {
+    background: rgba(0, 0, 0, 0.5);
+}
+
+/* ファイルプレビュー: 添付された画像のサムネイルや削除ボタン */
+#file-preview { display: flex; flex-wrap: wrap; gap: 10px; padding: 0 20px; background: #f0f2f5; }
+.preview-item { position: relative; width: 60px; height: 60px; background: #fff; border: 1px solid #ddd; border-radius: 8px; overflow: hidden; display: flex; align-items: center; justify-content: center; font-size: 10px; text-align: center; color: #666; }
+.preview-item img { width: 100%; height: 100%; object-fit: cover; }
+.preview-item .remove-btn { position: absolute; top: -2px; right: -2px; background: #ff4d4d; color: white; border: none; border-radius: 50%; width: 18px; height: 18px; cursor: pointer; font-size: 12px; line-height: 1; padding: 0; border: 1px solid white; }
+
+.message-wrapper { display: flex; gap: 10px; margin-bottom: 12px; width: 100%; align-items: flex-start; }
+.message-wrapper.user { flex-direction: row-reverse; }
+
+/* アバター: 送信者のアイコン（ユーザー/AI） */
+.avatar { width: 35px; height: 35px; border-radius: 50%; background: #fff; display: flex; align-items: center; justify-content: center; font-size: 1.2em; flex-shrink: 0; box-shadow: 0 1px 3px rgba(0,0,0,0.1); border: 1px solid #ddd; }
+
+/* メッセージ吹き出し: 基本形状とテキストの折り返し設定 */
+.message { padding: 12px 16px; border-radius: 18px; max-width: 70%; line-height: 1.4; font-size: 0.95em; word-wrap: break-word; white-space: pre-wrap; position: relative; }
+.message img { max-width: 100%; border-radius: 8px; margin-top: 8px; display: block; }
+
+/* Markdown装飾: AI回答内の段落、コードブロック、リストのスタイル */
+.message p { margin: 0 0 8px 0; }
+.message p:last-child { margin-bottom: 0; }
+.message pre { background: #f6f8fa; padding: 12px; border-radius: 8px; overflow-x: auto; margin: 6px 0; }
+.message code { font-family: var(--font-mono); font-size: 0.9em; background: rgba(0,0,0,0.05); padding: 2px 4px; border-radius: 4px; }
+.message pre code { background: transparent; padding: 0; }
+.message ul, .message ol { margin: 6px 0; padding-left: 20px; }
+
+/* メッセージ内ユーティリティ: コピーボタン、ファイル内容表示 */
+.copy-btn { background: rgba(0,0,0,0.05); border: 1px solid #ddd; border-radius: 4px; padding: 2px 8px; font-size: 0.75em; cursor: pointer; margin-top: 8px; float: right; }
+.copy-btn:hover { background: rgba(0,0,0,0.1); }
+.file-content { font-size: 0.85em; margin-top: 8px; padding: 8px; background: rgba(0,0,0,0.05); border-radius: 8px; border-left: 3px solid var(--primary-color); }
+.user .file-content { background: rgba(255,255,255,0.15); border-left-color: #fff; }
+
+/* メッセージ統計情報（トークン、時間など） */
+.message-metadata {
+    font-size: 0.75em;
+    color: #888;
+    margin-top: 8px;
+    border-top: 1px solid rgba(0,0,0,0.05);
+    padding-top: 4px;
+    font-family: monospace;
+}
+.message-metadata.warning {
+    color: #ff4d4d;
+    font-weight: bold;
+}
+.continue-btn {
+    background: var(--primary-color);
+    color: white;
+    border: none;
+    border-radius: 4px;
+    padding: 2px 8px;
+    font-size: 0.9em;
+    cursor: pointer;
+    margin-left: 8px;
+    vertical-align: middle;
+}
+.continue-btn:hover { filter: brightness(1.1); }
+
+/* 続きの生成メッセージ用の区切り線 */
+.continue-divider {
+    border-top: 1px dashed rgba(0, 0, 0, 0.2);
+    margin: 20px 0 15px 0;
+    position: relative;
+    display: block;
+}
+.continue-divider::after {
+    content: attr(data-label);
+    position: absolute;
+    top: -10px;
+    left: 10px;
+    background: #e4e6eb; /* AIのメッセージ背景色と合わせる */
+    padding: 0 8px;
+    font-size: 0.7em;
+    color: #888;
+}
+
+.toggle-file-btn { background: none; border: none; padding: 0; margin-top: 5px; display: block; cursor: pointer; font-size: 0.9em; text-decoration: underline; color: var(--primary-color); }
+.user .toggle-file-btn { color: #fff; }
+.user .message { background-color: var(--primary-color); color: white; border-bottom-right-radius: 4px; }
+.bot .message { background-color: #e4e6eb; color: #050505; border-bottom-left-radius: 4px; }
+
+/* 入力エリア: テキストボックス、送信ボタン、添付ボタン */
+#input-area { padding: 20px; background: white; border-top: 1px solid #ddd; display: flex; gap: 10px; }
+#user-input { padding: 12px; border: 1px solid #ccd0d5; border-radius: 20px; outline: none; font-size: 1em; box-sizing: border-box; }
+#send-btn { padding: 0 20px; background-color: var(--primary-color); color: white; border: none; border-radius: 20px; cursor: pointer; font-weight: bold; transition: background 0.2s, filter 0.2s; }
+#send-btn:hover { filter: brightness(0.9); }
+#send-btn:disabled, #attach-btn:disabled, #settings-btn:disabled, #reset-settings-btn:disabled, #cleanup-files-btn:disabled, #server-stop-btn:disabled { cursor: not-allowed; opacity: 0.5; }
+
+#send-btn:disabled, #attach-btn:disabled { background-color: #ebedf0; color: #bcc0c4; }
+#send-btn.stop-mode { background-color: #ff4d4d; }
+#send-btn.stop-mode:hover { background-color: #ff3333; }
+
+#clear-btn { background: #f0f2f5; border: none; padding: 5px 12px; border-radius: 15px; font-size: 0.7em; cursor: pointer; color: #65676b; }
+#clear-btn:hover { background: #e4e6eb; color: #1c1e21; }
+#attach-btn { background: #e4e6eb; border: none; width: 40px; height: 40px; border-radius: 50%; cursor: pointer; font-size: 1.2em; display: flex; align-items: center; justify-content: center; }
+#attach-btn:hover { background: #d8dadf; }
+
+#shorten-suggestion-btn:hover { opacity: 0.8; }
+
+/* アニメーション: 処理中（パルス）と再生成中（回転） */
+@keyframes pulse {
+    0% { opacity: 1; }
+    50% { opacity: 0.4; }
+    100% { opacity: 1; }
+}
+.pulse {
+    animation: pulse 1.5s infinite ease-in-out;
+}
+
+.spinning {
+    display: inline-block;
+    animation: spin 1s linear infinite;
+}
+@keyframes spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+
+/* 通知トースト: 画面右下にポップアップするメッセージ */
+#toast-container {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    z-index: 10000;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+.toast {
+    background: #333;
+    color: white;
+    padding: 12px 20px;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    font-size: 0.9em;
+    animation: slide-in 0.3s ease-out;
+    min-width: 200px;
+}
+.toast.warning { background: #f0ad4e; border-left: 5px solid #ec971f; }
+.toast.error { background: #d9534f; border-left: 5px solid #c9302c; }
+@keyframes slide-in {
+    from { transform: translateX(100%); opacity: 0; }
+    to { transform: translateX(0); opacity: 1; }
+}
+.toast.fade-out { opacity: 0; transition: opacity 0.5s ease-out; }

@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ローカルLLM Chat</title>
+    <link rel="stylesheet" href="style.css">
+    <!-- Markdown & Syntax Highlighting -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+    <!-- PDF.js for client-side PDF parsing -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+</head>
+<body>
+    <div id="app-container">
+        <div id="sidebar">
+            <button id="new-chat-btn">＋ 新しいチャット</button>
+            <div id="chat-list"></div>
+            <div id="storage-meter-container" style="padding: 0 10px; margin-bottom: 10px;">
+                <div style="display: flex; justify-content: space-between; font-size: 0.7em; color: #acacbe; margin-bottom: 4px;">
+                    <span>ストレージ使用量</span>
+                    <span id="storage-percent">0%</span>
+                </div>
+                <div style="width: 100%; height: 4px; background: #4d4d4f; border-radius: 2px; overflow: hidden;">
+                    <div id="storage-bar" style="width: 0%; height: 100%; background: var(--primary-color); transition: width 0.3s;"></div>
+                </div>
+            </div>
+            <div style="margin-top: auto; padding-top: 10px; border-top: 1px solid #4d4d4f;">
+                <button id="settings-btn" style="background: transparent; border: none; color: #acacbe; cursor: pointer; font-size: 0.9em; width: 100%; text-align: left; padding: 10px;">⚙ パラメーター設定</button>
+                <button id="server-stop-btn">🛑 サーバーを停止</button>
+            </div>
+        </div>
+        <div id="main-chat">
+            <div id="header">
+                <span>
+                    ローカルLLMチャット 
+                    <small id="model-display" style="font-weight: normal; font-size: 0.6em; color: #65676b; margin-left: 10px;"></small>
+                    <small id="status-indicator" style="font-weight: bold; font-size: 0.7em; margin-left: 5px;"></small>
+                    <small id="resource-display" style="font-size: 0.6em; color: #65676b; margin-left: 10px; font-family: monospace;"></small>
+                </span>
+                <button id="clear-btn">履歴をクリア</button>
+            </div>
+            <div id="chat-container"></div>
+            <div id="file-preview"></div>
+            <div id="input-area">
+                <button id="attach-btn" title="ファイルを添付">📎</button>
+                <input type="file" id="file-input" style="display: none;" accept="image/*,.pdf,.txt,.md" multiple>
+                <div style="flex: 1; display: flex; flex-direction: column; gap: 4px;">
+                    <input type="text" id="user-input" placeholder="メッセージを入力..." autocomplete="off" style="width: 100%;">
+                    <div style="display: flex; justify-content: flex-end; align-items: center; gap: 8px; padding-right: 10px;">
+                        <span id="shorten-suggestion-btn" style="display: none; font-size: 0.7em; color: var(--primary-color); cursor: pointer; text-decoration: underline;">AIに短縮を依頼</span>
+                        <div id="user-input-counter" style="font-size: 0.7em; color: #65676b;">0 文字 (推定 0 トークン) / 4000</div>
+                    </div>
+                </div>
+                <button id="send-btn">送信</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 設定モーダル -->
+    <dialog id="settings-modal" style="border: none; border-radius: 12px; padding: 20px; box-shadow: 0 0 20px rgba(0,0,0,0.2); width: 300px;">
+        <h3 style="margin-top: 0;">生成パラメーター</h3>
+        <div style="display: flex; flex-direction: column; gap: 15px;">
+            <div>
+                <label style="display: block; font-size: 0.8em; margin-bottom: 5px;">システムプロンプト (AIの役割)</label>
+                <select id="preset-select" style="width: 100%; padding: 5px; border: 1px solid #ddd; border-radius: 8px; font-size: 0.8em; margin-bottom: 5px;">
+                    <option value="">-- プリセットを選択 --</option>
+                    <option value="default">標準アシスタント</option>
+                    <option value="translator">プロ翻訳家</option>
+                    <option value="summarizer">要約エキスパート</option>
+                    <option value="programmer">プログラマー</option>
+                    <option value="proofreader">文章添削・校正</option>
+                    <option value="logician">論理的思考・論考</option>
+                    <option value="english_teacher">英会話練習</option>
+                    <option value="galactic_guide">銀河司書</option>
+                    <option value="cyber_hacker">サイバーハッカー</option>
+                    <option value="arcane_wizard">大魔導師</option>
+                    <option value="cat_maid">猫耳メイド</option>
+                </select>
+                <textarea id="system-input" rows="4" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 8px; font-size: 0.85em; resize: vertical; box-sizing: border-box; font-family: inherit;" placeholder="例: あなたは優秀な翻訳家です。"></textarea>
+                <div id="system-prompt-counter" style="text-align: right; font-size: 0.75em; color: #65676b; margin-top: 2px;">0 / 2000</div>
+                <div style="display: flex; gap: 5px; margin-top: 5px;">
+                    <input type="text" id="custom-preset-name" placeholder="テンプレートとして保存..." style="flex: 1; font-size: 0.75em; padding: 4px 8px; border: 1px solid #ddd; border-radius: 4px;">
+                    <button id="save-preset-btn" style="font-size: 0.7em; padding: 4px 8px; cursor: pointer; background: var(--primary-color); color: white; border: none; border-radius: 4px;">保存</button>
+                </div>
+            </div>
+            <div>
+                <label style="display: block; font-size: 0.8em; margin-bottom: 5px;">Temperature (温度: <span id="val-temp">0.7</span>)</label>
+                <input type="range" id="input-temp" min="0" max="2" step="0.1" value="0.7" style="width: 100%;">
+                <small style="color: #666; font-size: 0.7em;">高いほど創造的、低いほど堅実になります。</small>
+            </div>
+            <div>
+                <label style="display: block; font-size: 0.8em; margin-bottom: 5px;">Top P (<span id="val-top-p">0.9</span>)</label>
+                <input type="range" id="input-top-p" min="0" max="1" step="0.05" value="0.9" style="width: 100%;">
+                <small style="color: #666; font-size: 0.7em;">確率の高い単語から選択肢を絞り込みます。</small>
+            </div>
+            <div>
+                <label style="display: block; font-size: 0.8em; margin-bottom: 5px;">最大トークン数 (-1で無制限)</label>
+                <input type="number" id="input-max-tokens" value="-1" style="width: 100%; padding: 5px; border: 1px solid #ddd; border-radius: 4px;">
+            </div>
+            <div>
+                <label style="display: block; font-size: 0.8em; margin-bottom: 5px;">Frequency Penalty (<span id="val-frequency">0.0</span>)</label>
+                <input type="range" id="input-frequency" min="0" max="2" step="0.1" value="0.0" style="width: 100%;">
+                <small style="color: #666; font-size: 0.7em;">同じ単語の繰り返しを抑制します。</small>
+            </div>
+            <div>
+                <label style="display: block; font-size: 0.8em; margin-bottom: 5px;">Presence Penalty (<span id="val-presence">0.0</span>)</label>
+                <input type="range" id="input-presence" min="0" max="2" step="0.1" value="0.0" style="width: 100%;">
+                <small style="color: #666; font-size: 0.7em;">新しいトピックへの移行を促します。</small>
+            </div>
+            <div>
+                <label style="display: block; font-size: 0.8em; margin-bottom: 5px;">チャット画面の壁紙</label>
+                <div style="display: flex; flex-direction: column; gap: 5px;">
+                    <input type="text" id="input-wallpaper-url" placeholder="URLまたは相対パス (例: bg.jpg)" style="width: 100%; padding: 5px; border: 1px solid #ddd; border-radius: 4px; font-size: 0.8em;">
+                    <span style="font-size: 0.7em; color: #666; text-align: center;">- または -</span>
+                    <input type="file" id="input-wallpaper" accept="image/*" style="font-size: 0.8em; width: 100%;">
+                </div>
+                <button id="reset-wallpaper-btn" style="margin-top: 5px; padding: 4px 8px; border: 1px solid #ddd; border-radius: 4px; cursor: pointer; font-size: 0.7em; background: #fff;">壁紙を解除</button>
+            </div>
+            <div>
+                <label style="display: block; font-size: 0.8em; margin-bottom: 5px;">壁紙の透明度 (<span id="val-wallpaper-opacity">0.15</span>)</label>
+                <input type="range" id="input-wallpaper-opacity" min="0" max="1" step="0.01" value="0.15" style="width: 100%;">
+            </div>
+            <div>
+                <label style="display: block; font-size: 0.8em; margin-bottom: 5px;">壁紙のぼかし (<span id="val-wallpaper-blur">0</span>px)</label>
+                <input type="range" id="input-wallpaper-blur" min="0" max="20" step="1" value="0" style="width: 100%;">
+            </div>
+            <div>
+                <label style="display: block; font-size: 0.8em; margin-bottom: 5px;">壁紙の表示方法</label>
+                <select id="input-wallpaper-fit" style="width: 100%; padding: 5px; border: 1px solid #ddd; border-radius: 4px; font-size: 0.8em;">
+                    <option value="cover">全体（Cover）</option>
+                    <option value="contain">全体を表示（Contain）</option>
+                    <option value="tile">並べて表示（Tile）</option>
+                </select>
+            </div>
+            <div>
+                <label style="display: block; font-size: 0.8em; margin-bottom: 5px;">テーマカラー</label>
+                <input type="color" id="input-theme-color" value="#0084ff" style="width: 100%; height: 30px; border: 1px solid #ddd; border-radius: 4px; padding: 2px; cursor: pointer;">
+            </div>
+            <div>
+                <label style="display: block; font-size: 0.8em; margin-bottom: 5px;">通知の表示時間 (<span id="val-toast-duration">4</span>秒)</label>
+                <input type="range" id="input-toast-duration" min="1" max="10" step="1" value="4" style="width: 100%;">
+            </div>
+            <div style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 10px;">
+                <button id="cleanup-files-btn" style="padding: 8px 15px; border: none; border-radius: 6px; cursor: pointer; background: #f0f2f5; color: #d9534f; font-size: 0.8em; margin-right: auto;" title="現在のチャット以外の画像を削除して容量を確保します">古い画像の削除</button>
+                <button id="reset-settings-btn" style="padding: 8px 15px; border: none; border-radius: 6px; cursor: pointer; background: #f0f2f5; color: #d9534f; font-size: 0.8em;">初期化</button>
+                <button id="close-settings-btn" style="padding: 8px 15px; border: none; border-radius: 6px; cursor: pointer; background: #eee;">閉じる</button>
+            </div>
+            <div style="border-top: 1px solid #ddd; padding-top: 10px; margin-top: 10px; display: flex; gap: 5px;">
+                <button id="export-btn" style="flex: 1; padding: 8px; border: 1px solid #ddd; border-radius: 6px; cursor: pointer; font-size: 0.75em; background: #fff;">📤 データ保存 (JSON)</button>
+                <button id="import-btn" style="flex: 1; padding: 8px; border: 1px solid #ddd; border-radius: 6px; cursor: pointer; font-size: 0.75em; background: #fff;">📥 データを復元</button>
+                <input type="file" id="import-file" style="display: none;" accept=".json">
+            </div>
+        </div>
+    </dialog>
+
+    <script type="module" src="script.js"></script>
+</body>
+</html>
